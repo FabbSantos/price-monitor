@@ -7,7 +7,7 @@ import { PriceData, PriceHistory as PriceHistoryType } from '@/lib/types';
 import productsConfig from '../../config/products.json';
 import { RefreshCw, Clock, Zap, TrendingDown } from 'lucide-react';
 
-const CHECK_INTERVAL = parseInt(process.env.NEXT_PUBLIC_CHECK_INTERVAL || '30') * 60 * 1000; // 30 min default
+const CHECK_INTERVAL = parseInt(process.env.NEXT_PUBLIC_CHECK_INTERVAL || '15') * 60 * 1000; // 15 min default
 
 export default function Home() {
   const [prices, setPrices] = useState<PriceData[]>([]);
@@ -164,7 +164,7 @@ export default function Home() {
                 ))
               ) : (
                 <div className="col-span-full glass rounded-xl p-8 text-center text-gray-400">
-                  Nenhum preço disponível ainda. Clique em "Atualizar" para buscar.
+                  Nenhum preço disponível ainda. Clique em &quot;Atualizar&quot; para buscar.
                 </div>
               )}
             </div>
@@ -177,7 +177,6 @@ export default function Home() {
         {/* Footer */}
         <footer className="text-center text-gray-500 text-sm mt-12 pb-8">
           <p>Monitoramento automático a cada {CHECK_INTERVAL / 60000} minutos</p>
-          <p className="mt-2">Desenvolvido com Next.js, TypeScript e Tailwind CSS</p>
         </footer>
       </div>
     </div>

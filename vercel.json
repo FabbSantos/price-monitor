@@ -4,6 +4,6 @@
   "framework": "nextjs",
   "regions": ["gru1"],
   "env": {
-    "CHECK_INTERVAL": "30"
+    "CHECK_INTERVAL": "15"
   }
 }

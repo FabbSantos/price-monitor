@@ -11,17 +11,26 @@ export class AmazonScraper extends BaseScraper {
       const html = await this.fetchPage(url);
       const $ = cheerio.load(html);
 
-      // Foca apenas na área do produto principal (não em produtos relacionados)
-      const mainProduct = $('#dp, #ppd, .dp-container, #centerCol');
+      // Remove seções de produtos relacionados antes de buscar preço
+      $('#similarities_feature_div').remove();
+      $('#anonCarousel1').remove();
+      $('#anonCarousel2').remove();
+      $('#HLCXComparisonJumplink_feature_div').remove();
+      $('[data-component-type="sp-sponsored-carousel"]').remove();
+      $('.a-carousel-container').remove();
 
-      // Amazon tem múltiplos seletores possíveis para preço
+      // Foca ESTRITAMENTE na área do produto principal
+      const mainProduct = $('#dp-container, #ppd, #centerCol');
+
+      // Seletores específicos para preço do produto principal na Amazon BR
       const priceSelectors = [
-        '.a-price-whole',
+        '#corePriceDisplay_desktop_feature_div .a-price-whole',
+        '#corePriceDisplay_desktop_feature_div .a-offscreen',
+        '#price_inside_buybox',
         '#priceblock_ourprice',
         '#priceblock_dealprice',
-        '#corePriceDisplay_desktop_feature_div .a-price-whole',
         '.a-price[data-a-size="xl"] .a-price-whole',
-        '[data-a-color="price"] .a-offscreen',
+        '.a-price[data-a-size="large"] .a-price-whole',
       ];
 
       let price: number | null = null;
@@ -40,27 +49,15 @@ export class AmazonScraper extends BaseScraper {
         }
       }
 
-      // Se não encontrou na área principal, tenta a página toda (fallback)
-      if (!price) {
-        for (const selector of priceSelectors) {
-          const element = $(selector).first();
-          if (element.length > 0) {
-            const priceText = element.text().trim();
-            price = this.extractPrice(priceText);
-
-            if (price && price > 0) {
-              console.log(`[Amazon] Preço encontrado (fallback): R$ ${price}`);
-              break;
-            }
-          }
-        }
-      }
-
-      // Verifica disponibilidade
+      // Verifica disponibilidade - textos específicos da Amazon BR
+      const bodyText = $('body').text();
       const outOfStock =
-        $('body').text().includes('Indisponível') ||
-        $('body').text().includes('Fora de estoque') ||
-        $('#availability .a-color-price').length > 0;
+        bodyText.includes('Não disponível') ||
+        bodyText.includes('Indisponível') ||
+        bodyText.includes('Fora de estoque') ||
+        bodyText.includes('Não temos previsão de quando este produto estará disponível novamente') ||
+        $('#availability .a-color-price').length > 0 ||
+        $('#availability .a-color-state').text().includes('Indisponível');
 
       return {
         price,

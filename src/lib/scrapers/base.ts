@@ -58,6 +58,52 @@ export abstract class BaseScraper {
   }
 
   /**
+   * Faz requisição com referer e headers extras (para sites com anti-bot mais forte)
+   */
+  protected async fetchPageWithReferer(url: string, retries = 3): Promise<string> {
+    const urlObj = new URL(url);
+    const baseUrl = `${urlObj.protocol}//${urlObj.hostname}`;
+
+    for (let i = 0; i < retries; i++) {
+      try {
+        // Delay entre 2-4 segundos para não ser agressivo
+        await this.delay(2000 + Math.random() * 2000);
+
+        const response = await axios.get(url, {
+          headers: {
+            'User-Agent': this.getRandomUserAgent(),
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Referer': baseUrl,
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'same-origin',
+            'Cache-Control': 'max-age=0',
+          },
+          timeout: 20000,
+          maxRedirects: 5,
+        });
+
+        return response.data;
+      } catch (error) {
+        console.error(`[Scraper] Tentativa ${i + 1}/${retries} falhou para ${url}:`, error);
+
+        if (i === retries - 1) {
+          throw error;
+        }
+
+        // Aguarda antes de tentar novamente (backoff exponencial maior)
+        await this.delay(3000 * (i + 1));
+      }
+    }
+
+    throw new Error('Todas as tentativas falharam');
+  }
+
+  /**
    * Extrai preço de uma string
    */
   protected extractPrice(priceText: string): number | null {

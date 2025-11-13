@@ -8,7 +8,7 @@ import { BaseScraper } from './base';
 export class CasasBahiaScraper extends BaseScraper {
   async scrape(url: string) {
     try {
-      const html = await this.fetchPage(url);
+      const html = await this.fetchPageWithReferer(url);
       const $ = cheerio.load(html);
 
       // Seletores para Casas Bahia

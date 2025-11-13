@@ -57,9 +57,11 @@ export class MagazineLuizaScraper extends BaseScraper {
       }
 
       // Verifica disponibilidade
+      const bodyText = $('body').text();
       const outOfStock =
-        $('body').text().includes('Produto indisponível') ||
-        $('body').text().includes('Sem estoque') ||
+        bodyText.includes('Produto indisponível') ||
+        bodyText.includes('Sem estoque') ||
+        bodyText.includes('Não disponível') ||
         $('.unavailable').length > 0;
 
       return {
