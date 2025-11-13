@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm:*)",
+      "Bash(del \"c:\\Users\\Dread\\Documents\\Documentos Fabs\\Projects\\price-monitor\\src\\app\\favicon.ico\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

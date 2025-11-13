@@ -1,0 +1,48 @@
+{
+  "products": [
+    {
+      "id": "tcl-c755-65",
+      "name": "TCL C755 65\"",
+      "targetPrice": 4000,
+      "urls": {
+        "amazon": "https://www.amazon.com.br/TCL-Premium-QD-Mini-Google-Vision/dp/B0D4MNYC1V",
+        "casasbahia": "https://www.casasbahia.com.br/smart-tv-tcl-65-polegadas-65c755-4k-uhd-qled-mini-led-120hz-hdr10-google-tv-dolby-vision-iq/p/1575958715",
+        "magazineluiza": "https://www.magazineluiza.com.br/smart-tv-65-4k-uhd-qled-mini-led-tcl-65c755-120hz-wi-fi-bluetooth-4-hdmi-2-usb/p/238304400/et/tv4k/?seller_id=magazineluiza",
+        "mercadolivre": "https://www.mercadolivre.com.br/tcl-smart-tv-premium-4k-qd-mini-led-65-c755-google-tv-dolby/p/MLB36336886"
+      }
+    },
+    {
+      "id": "tcl-c6k-65",
+      "name": "TCL C6K 65\" (2025)",
+      "targetPrice": 3300,
+      "urls": {
+        "amazon": "https://www.amazon.com.br/TCL-Polegadas-Bluetooth-Google-65C6K/dp/B0F7K7B2PD",
+        "casasbahia": "https://www.casasbahia.com.br/smart-tv-65-tcl-c6k-premium-4k-qd-mini-led-com-sistema-operacional-google-tv-dolby-vision-iq-atmos-subwoofer-hdr10-144hz-vrr-e-comando-de-voz/p/55069453",
+        "magazineluiza": "https://www.magazineluiza.com.br/smart-tv-65-tcl-4k-uhd-miniled-65c6k-120hz-google-tv-aipq-google-assistente-4-hdmi-2-usb/p/240162600/et/tves/",
+        "mercadolivre": "https://www.mercadolivre.com.br/smart-tv-tcl-65-polegadas-qled-mini-led-4k-c6k-wifi-bluetooth-google-tv-4-hdmi-144hz-hdr10-65c6k/p/MLB50368907"
+      }
+    }
+  ],
+  "stores": [
+    {
+      "id": "amazon",
+      "name": "Amazon BR",
+      "enabled": true
+    },
+    {
+      "id": "casasbahia",
+      "name": "Casas Bahia",
+      "enabled": true
+    },
+    {
+      "id": "magazineluiza",
+      "name": "Magazine Luiza",
+      "enabled": true
+    },
+    {
+      "id": "mercadolivre",
+      "name": "Mercado Livre",
+      "enabled": true
+    }
+  ]
+}
