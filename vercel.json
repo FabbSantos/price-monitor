@@ -5,11 +5,5 @@
   "regions": ["gru1"],
   "env": {
     "CHECK_INTERVAL": "30"
-  },
-  "crons": [
-    {
-      "path": "/api/scrape",
-      "schedule": "*/30 * * * *"
-    }
-  ]
+  }
 }
