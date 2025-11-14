@@ -16,9 +16,15 @@ export default function Home() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [nextUpdate, setNextUpdate] = useState<Date | null>(null);
   const [countdown, setCountdown] = useState<number>(0);
+  const [isManualUpdate, setIsManualUpdate] = useState(false);
 
   // Carrega preços
   const fetchPrices = useCallback(async (manual = false) => {
+    // Se é manual, marca flag para pausar polling temporariamente
+    if (manual) {
+      setIsManualUpdate(true);
+    }
+
     setLoading(true);
     try {
       // Se manual, faz scraping. Se não, apenas carrega os dados salvos
@@ -59,6 +65,13 @@ export default function Home() {
       console.error('Erro ao buscar preços:', error);
     } finally {
       setLoading(false);
+
+      // Após atualização manual, aguarda 5s antes de voltar ao polling
+      if (manual) {
+        setTimeout(() => {
+          setIsManualUpdate(false);
+        }, 5000);
+      }
     }
   }, []);
 
@@ -69,7 +82,10 @@ export default function Home() {
 
     // Polling a cada 30s para ver se há novos dados (quando o cron rodar)
     const pollingInterval = setInterval(() => {
-      fetchPrices(false); // Busca do banco sem scraping
+      // Só faz polling se NÃO estiver em atualização manual
+      if (!isManualUpdate) {
+        fetchPrices(false); // Busca do banco sem scraping
+      }
     }, 30000); // 30 segundos
 
     // Scraping manual apenas quando o usuário clica (cron faz o resto)
@@ -78,7 +94,7 @@ export default function Home() {
     return () => {
       clearInterval(pollingInterval);
     };
-  }, [fetchPrices]);
+  }, [fetchPrices, isManualUpdate]);
 
   // Countdown para próxima atualização
   useEffect(() => {

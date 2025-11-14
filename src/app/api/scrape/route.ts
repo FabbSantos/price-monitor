@@ -8,8 +8,9 @@ import productsConfig from '../../../../config/products.json';
 
 /**
  * Salva preços no Supabase
+ * Retorna os preços que tiveram mudança significativa (para notificar)
  */
-async function savePricesToSupabase(prices: PriceData[]) {
+async function savePricesToSupabase(prices: PriceData[]): Promise<PriceData[]> {
   try {
     // Cria cliente FRESCO para evitar cache
     const supabase = getSupabaseAdmin();
@@ -56,9 +57,12 @@ async function savePricesToSupabase(prices: PriceData[]) {
     }
 
     // 3. Adiciona ao histórico apenas se houve mudança significativa (>5%)
-    await addToHistoryIfChanged(supabase, prices);
+    // Retorna os preços que mudaram para enviar notificações
+    const changedPrices = await addToHistoryIfChanged(supabase, prices);
 
     console.log('[Supabase] ✅ Salvamento concluído com sucesso');
+
+    return changedPrices;
   } catch (error) {
     console.error('[Supabase] ❌ Erro geral ao salvar preços:', error);
     throw error; // Re-throw para ver no log
@@ -67,8 +71,11 @@ async function savePricesToSupabase(prices: PriceData[]) {
 
 /**
  * Adiciona ao histórico se o preço mudou >5%
+ * Retorna os preços que tiveram mudança significativa
  */
-async function addToHistoryIfChanged(supabase: ReturnType<typeof getSupabaseAdmin>, prices: PriceData[]) {
+async function addToHistoryIfChanged(supabase: ReturnType<typeof getSupabaseAdmin>, prices: PriceData[]): Promise<PriceData[]> {
+  const changedPrices: PriceData[] = [];
+
   try {
     const historyEntries = [];
 
@@ -93,6 +100,7 @@ async function addToHistoryIfChanged(supabase: ReturnType<typeof getSupabaseAdmi
           price: currentPrice.price,
           checked_at: currentPrice.timestamp,
         });
+        changedPrices.push(currentPrice);
         continue;
       }
 
@@ -107,6 +115,7 @@ async function addToHistoryIfChanged(supabase: ReturnType<typeof getSupabaseAdmi
           price: currentPrice.price,
           checked_at: currentPrice.timestamp,
         });
+        changedPrices.push(currentPrice);
 
         console.log(
           `[History] Mudança de ${(priceChange * 100).toFixed(1)}% para ${currentPrice.productId} em ${currentPrice.store}`
@@ -128,6 +137,8 @@ async function addToHistoryIfChanged(supabase: ReturnType<typeof getSupabaseAdmi
   } catch (error) {
     console.error('[Supabase] Erro ao verificar histórico:', error);
   }
+
+  return changedPrices;
 }
 
 /**
@@ -172,17 +183,6 @@ export async function GET(request: NextRequest) {
           };
 
           results.push(priceData);
-
-          // Verifica se deve notificar
-          if (priceData.price && priceData.price <= product.targetPrice) {
-            console.log(`[API] 🎯 ALERTA: ${product.name} em ${store.name} por R$ ${priceData.price}`);
-
-            // Notifica por email E ntfy
-            await Promise.all([
-              notifier.notify(priceData, product.targetPrice),
-              ntfyNotifier.notify(priceData, product.targetPrice),
-            ]);
-          }
         } catch (error) {
           console.error(`[API] Erro ao scraping ${product.name} em ${store.name}:`, error);
 
@@ -202,18 +202,40 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Salva os resultados no Supabase
-    await savePricesToSupabase(results);
+    // Salva os resultados no Supabase e pega os que mudaram
+    const changedPrices = await savePricesToSupabase(results);
 
     const duration = Date.now() - startTime;
 
     console.log(`[API] Scraping concluído em ${duration}ms. ${results.length} preços coletados.`);
 
-    // Envia summary via ntfy
-    const targetPricesMap = new Map(
-      productsConfig.products.map(p => [p.id, p.targetPrice])
-    );
-    await ntfyNotifier.sendSummary(results, targetPricesMap);
+    // Envia notificações APENAS para os preços que mudaram
+    if (changedPrices.length > 0) {
+      console.log(`[API] Enviando notificações para ${changedPrices.length} preços que mudaram...`);
+
+      const targetPricesMap = new Map(
+        productsConfig.products.map(p => [p.id, p.targetPrice])
+      );
+
+      for (const priceData of changedPrices) {
+        const targetPrice = targetPricesMap.get(priceData.productId) || 0;
+
+        // Só notifica se estiver abaixo do target
+        if (priceData.price && priceData.price <= targetPrice) {
+          console.log(`[API] 🎯 ALERTA: ${priceData.productName} em ${priceData.storeName} por R$ ${priceData.price}`);
+
+          await Promise.all([
+            notifier.notify(priceData, targetPrice),
+            ntfyNotifier.notify(priceData, targetPrice),
+          ]);
+        }
+      }
+
+      // Envia summary via ntfy
+      await ntfyNotifier.sendSummary(changedPrices, targetPricesMap);
+    } else {
+      console.log('[API] Nenhuma mudança de preço detectada. Sem notificações.');
+    }
 
     // Busca os dados salvos do banco para retornar (igual /api/prices)
     // Usa cliente FRESCO para garantir dados atualizados
