@@ -28,7 +28,31 @@ export default function Home() {
 
       if (data.success) {
         setPrices(data.prices);
-        setLastUpdate(new Date());
+
+        // Usa lastCheck do banco se disponível
+        if (data.lastCheck) {
+          setLastUpdate(new Date(data.lastCheck));
+        } else {
+          setLastUpdate(new Date());
+        }
+
+        // Histórico já vem junto na API /prices
+        if (data.history) {
+          // Converte do formato do banco para o formato esperado
+          const historyArray: PriceHistoryType[] = Object.entries(data.history).map(([key, entries]) => {
+            const [productId, store] = key.split('-');
+            return {
+              productId,
+              store,
+              prices: (entries as Array<{ date: string; price: number }>).map(entry => ({
+                price: entry.price,
+                timestamp: entry.date,
+              })),
+            };
+          });
+          setHistory(historyArray);
+        }
+
         setNextUpdate(new Date(Date.now() + CHECK_INTERVAL));
       }
     } catch (error) {
@@ -38,34 +62,23 @@ export default function Home() {
     }
   }, []);
 
-  // Carrega histórico
-  const fetchHistory = useCallback(async () => {
-    try {
-      const response = await fetch('/api/history');
-      const data = await response.json();
-
-      if (data.success) {
-        setHistory(data.history);
-      }
-    } catch (error) {
-      console.error('Erro ao buscar histórico:', error);
-    }
-  }, []);
-
   // Atualização automática
   useEffect(() => {
     // Carrega dados iniciais (sem fazer scraping)
     fetchPrices(false);
-    fetchHistory();
 
-    // Configura intervalo para scraping automático
-    const interval = setInterval(() => {
-      fetchPrices(true);
-      fetchHistory();
-    }, CHECK_INTERVAL);
+    // Polling a cada 30s para ver se há novos dados (quando o cron rodar)
+    const pollingInterval = setInterval(() => {
+      fetchPrices(false); // Busca do banco sem scraping
+    }, 30000); // 30 segundos
 
-    return () => clearInterval(interval);
-  }, [fetchPrices, fetchHistory]);
+    // Scraping manual apenas quando o usuário clica (cron faz o resto)
+    // Removido o intervalo automático de scraping no frontend
+
+    return () => {
+      clearInterval(pollingInterval);
+    };
+  }, [fetchPrices]);
 
   // Countdown para próxima atualização
   useEffect(() => {

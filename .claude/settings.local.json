@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(rm:*)",
-      "Bash(del \"c:\\Users\\Dread\\Documents\\Documentos Fabs\\Projects\\price-monitor\\src\\app\\favicon.ico\")"
+      "Bash(del \"c:\\Users\\Dread\\Documents\\Documentos Fabs\\Projects\\price-monitor\\src\\app\\favicon.ico\")",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

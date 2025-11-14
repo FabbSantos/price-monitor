@@ -1,10 +1,121 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getScraperForStore } from '@/lib/scrapers';
-import { saveLatestPrices, addToHistory } from '@/lib/storage';
 import { getNotifier } from '@/lib/notifier';
 import { getNtfyNotifier } from '@/lib/notifier-ntfy';
 import { PriceData } from '@/lib/types';
+import { supabaseAdmin } from '@/lib/supabase';
 import productsConfig from '../../../../config/products.json';
+
+/**
+ * Salva preços no Supabase
+ */
+async function savePricesToSupabase(prices: PriceData[]) {
+  try {
+    const timestamp = new Date().toISOString();
+
+    // 1. Atualiza timestamp da última verificação
+    const { error: checkError } = await supabaseAdmin
+      .from('price_checks')
+      .update({ last_check: timestamp })
+      .eq('id', 1);
+
+    if (checkError) {
+      console.error('[Supabase] Erro ao atualizar price_checks:', checkError);
+    }
+
+    // 2. UPSERT dos preços atuais (substitui preços antigos)
+    const currentPricesData = prices.map(p => ({
+      product_id: p.productId,
+      store: p.store,
+      price: p.price,
+      available: p.available,
+      error: p.error || null,
+      checked_at: timestamp,
+    }));
+
+    const { error: pricesError } = await supabaseAdmin
+      .from('current_prices')
+      .upsert(currentPricesData, {
+        onConflict: 'product_id,store',
+      });
+
+    if (pricesError) {
+      console.error('[Supabase] Erro ao salvar current_prices:', pricesError);
+    }
+
+    // 3. Adiciona ao histórico apenas se houve mudança significativa (>5%)
+    await addToHistoryIfChanged(prices);
+
+    console.log('[Supabase] Preços salvos com sucesso');
+  } catch (error) {
+    console.error('[Supabase] Erro ao salvar preços:', error);
+  }
+}
+
+/**
+ * Adiciona ao histórico se o preço mudou >5%
+ */
+async function addToHistoryIfChanged(prices: PriceData[]) {
+  try {
+    const historyEntries = [];
+
+    for (const currentPrice of prices) {
+      if (!currentPrice.price) continue;
+
+      // Busca último preço registrado
+      const { data: lastPrice } = await supabaseAdmin
+        .from('price_history')
+        .select('price')
+        .eq('product_id', currentPrice.productId)
+        .eq('store', currentPrice.store)
+        .order('checked_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      // Se não tem histórico, adiciona
+      if (!lastPrice) {
+        historyEntries.push({
+          product_id: currentPrice.productId,
+          store: currentPrice.store,
+          price: currentPrice.price,
+          checked_at: currentPrice.timestamp,
+        });
+        continue;
+      }
+
+      // Calcula diferença percentual
+      const priceChange = Math.abs((currentPrice.price - lastPrice.price) / lastPrice.price);
+
+      // Se mudou >5%, adiciona ao histórico
+      if (priceChange >= 0.05) {
+        historyEntries.push({
+          product_id: currentPrice.productId,
+          store: currentPrice.store,
+          price: currentPrice.price,
+          checked_at: currentPrice.timestamp,
+        });
+
+        console.log(
+          `[History] Mudança de ${(priceChange * 100).toFixed(1)}% para ${currentPrice.productId} em ${currentPrice.store}`
+        );
+      }
+    }
+
+    if (historyEntries.length > 0) {
+      const { error } = await supabaseAdmin
+        .from('price_history')
+        .insert(historyEntries);
+
+      if (error) {
+        console.error('[Supabase] Erro ao salvar histórico:', error);
+      } else {
+        console.log(`[History] ${historyEntries.length} mudanças registradas`);
+      }
+    }
+  } catch (error) {
+    console.error('[Supabase] Erro ao verificar histórico:', error);
+  }
+}
 
 /**
  * API Route para fazer scraping de preços
@@ -78,9 +189,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Salva os resultados
-    saveLatestPrices(results);
-    addToHistory(results);
+    // Salva os resultados no Supabase
+    await savePricesToSupabase(results);
 
     const duration = Date.now() - startTime;
 
