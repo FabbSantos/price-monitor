@@ -3,7 +3,7 @@ import { getScraperForStore } from '@/lib/scrapers';
 import { getNotifier } from '@/lib/notifier';
 import { getNtfyNotifier } from '@/lib/notifier-ntfy';
 import { PriceData } from '@/lib/types';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import productsConfig from '../../../../config/products.json';
 
 /**
@@ -11,16 +11,23 @@ import productsConfig from '../../../../config/products.json';
  */
 async function savePricesToSupabase(prices: PriceData[]) {
   try {
+    // Cria cliente FRESCO para evitar cache
+    const supabase = getSupabaseAdmin();
     const timestamp = new Date().toISOString();
 
+    console.log('[Supabase] Iniciando salvamento de', prices.length, 'preços...');
+
     // 1. Atualiza timestamp da última verificação
-    const { error: checkError } = await supabaseAdmin
+    const { data: checkData, error: checkError } = await supabase
       .from('price_checks')
       .update({ last_check: timestamp })
-      .eq('id', 1);
+      .eq('id', 1)
+      .select();
 
     if (checkError) {
-      console.error('[Supabase] Erro ao atualizar price_checks:', checkError);
+      console.error('[Supabase] ERRO ao atualizar price_checks:', checkError);
+    } else {
+      console.log('[Supabase] price_checks atualizado:', checkData);
     }
 
     // 2. UPSERT dos preços atuais (substitui preços antigos)
@@ -33,29 +40,35 @@ async function savePricesToSupabase(prices: PriceData[]) {
       checked_at: timestamp,
     }));
 
-    const { error: pricesError } = await supabaseAdmin
+    console.log('[Supabase] Fazendo UPSERT de', currentPricesData.length, 'preços...');
+
+    const { data: pricesData, error: pricesError } = await supabase
       .from('current_prices')
       .upsert(currentPricesData, {
         onConflict: 'product_id,store',
-      });
+      })
+      .select();
 
     if (pricesError) {
-      console.error('[Supabase] Erro ao salvar current_prices:', pricesError);
+      console.error('[Supabase] ERRO ao salvar current_prices:', pricesError);
+    } else {
+      console.log('[Supabase] current_prices salvos:', pricesData?.length, 'linhas');
     }
 
     // 3. Adiciona ao histórico apenas se houve mudança significativa (>5%)
-    await addToHistoryIfChanged(prices);
+    await addToHistoryIfChanged(supabase, prices);
 
-    console.log('[Supabase] Preços salvos com sucesso');
+    console.log('[Supabase] ✅ Salvamento concluído com sucesso');
   } catch (error) {
-    console.error('[Supabase] Erro ao salvar preços:', error);
+    console.error('[Supabase] ❌ Erro geral ao salvar preços:', error);
+    throw error; // Re-throw para ver no log
   }
 }
 
 /**
  * Adiciona ao histórico se o preço mudou >5%
  */
-async function addToHistoryIfChanged(prices: PriceData[]) {
+async function addToHistoryIfChanged(supabase: ReturnType<typeof getSupabaseAdmin>, prices: PriceData[]) {
   try {
     const historyEntries = [];
 
@@ -63,7 +76,7 @@ async function addToHistoryIfChanged(prices: PriceData[]) {
       if (!currentPrice.price) continue;
 
       // Busca último preço registrado
-      const { data: lastPrice } = await supabaseAdmin
+      const { data: lastPrice } = await supabase
         .from('price_history')
         .select('price')
         .eq('product_id', currentPrice.productId)
@@ -102,7 +115,7 @@ async function addToHistoryIfChanged(prices: PriceData[]) {
     }
 
     if (historyEntries.length > 0) {
-      const { error } = await supabaseAdmin
+      const { error } = await supabase
         .from('price_history')
         .insert(historyEntries);
 
@@ -202,9 +215,38 @@ export async function GET(request: NextRequest) {
     );
     await ntfyNotifier.sendSummary(results, targetPricesMap);
 
+    // Busca os dados salvos do banco para retornar (igual /api/prices)
+    // Usa cliente FRESCO para garantir dados atualizados
+    const supabaseRead = getSupabaseAdmin();
+    const { data: checkData } = await supabaseRead
+      .from('price_checks')
+      .select('last_check')
+      .eq('id', 1)
+      .single();
+
+    const { data: historyData } = await supabaseRead
+      .from('price_history')
+      .select('*')
+      .order('checked_at', { ascending: true });
+
+    // Formata histórico
+    const history: Record<string, Array<{ date: string; price: number }>> = {};
+    historyData?.forEach(h => {
+      const key = `${h.product_id}-${h.store}`;
+      if (!history[key]) {
+        history[key] = [];
+      }
+      history[key].push({
+        date: h.checked_at,
+        price: Number(h.price),
+      });
+    });
+
     return NextResponse.json({
       success: true,
       prices: results,
+      lastCheck: checkData?.last_check || new Date().toISOString(),
+      history,
       timestamp: new Date().toISOString(),
       duration,
     });

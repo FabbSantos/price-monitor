@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import productsConfig from '../../../../config/products.json';
 
 /**
@@ -8,6 +8,9 @@ import productsConfig from '../../../../config/products.json';
  */
 export async function GET() {
   try {
+    // Cria cliente FRESCO para evitar cache
+    const supabase = getSupabaseAdmin();
+
     // 1. Busca timestamp da última verificação
     const { data: checkData, error: checkError } = await supabase
       .from('price_checks')

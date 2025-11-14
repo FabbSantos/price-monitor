@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -11,10 +11,32 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
- * Cliente Supabase para uso no backend (API routes)
- * Usa SERVICE_ROLE_KEY para bypass RLS quando necessário
+ * Cria um cliente admin Supabase FRESCO para cada chamada
+ * Evita problemas de cache/pooling
  */
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+export function getSupabaseAdmin(): SupabaseClient {
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    db: {
+      schema: 'public',
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+    global: {
+      headers: {
+        'cache-control': 'no-cache',
+        'x-client-info': `price-monitor-${Date.now()}`,
+      },
+    },
+  });
+}
+
+/**
+ * Cliente Supabase admin (backward compatibility)
+ * @deprecated Use getSupabaseAdmin() para evitar cache
+ */
+export const supabaseAdmin = getSupabaseAdmin();
 
 /**
  * Tipos TypeScript para as tabelas

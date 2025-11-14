@@ -30,13 +30,14 @@ export default function Home() {
         setPrices(data.prices);
 
         // Usa lastCheck do banco se disponível
-        if (data.lastCheck) {
-          setLastUpdate(new Date(data.lastCheck));
-        } else {
-          setLastUpdate(new Date());
-        }
+        const lastCheckTime = data.lastCheck ? new Date(data.lastCheck) : new Date();
+        setLastUpdate(lastCheckTime);
 
-        // Histórico já vem junto na API /prices
+        // Calcula próxima atualização baseado no lastCheck do banco
+        const nextCheckTime = new Date(lastCheckTime.getTime() + CHECK_INTERVAL);
+        setNextUpdate(nextCheckTime);
+
+        // Histórico já vem junto na API
         if (data.history) {
           // Converte do formato do banco para o formato esperado
           const historyArray: PriceHistoryType[] = Object.entries(data.history).map(([key, entries]) => {
@@ -51,9 +52,8 @@ export default function Home() {
             };
           });
           setHistory(historyArray);
+          console.log('[Frontend] Histórico carregado:', historyArray.length, 'entradas');
         }
-
-        setNextUpdate(new Date(Date.now() + CHECK_INTERVAL));
       }
     } catch (error) {
       console.error('Erro ao buscar preços:', error);

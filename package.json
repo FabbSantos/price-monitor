@@ -13,6 +13,7 @@
     "test:email": "node scripts/test-email.js",
     "test:scraper": "node scripts/test-scraper.js",
     "test:ntfy": "node scripts/test-ntfy.js",
+    "test:supabase": "node scripts/test-supabase.js",
     "debug:scraper": "node scripts/debug-scraper.js",
     "setup": "node scripts/setup.js"
   },

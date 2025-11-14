@@ -4,7 +4,11 @@
       "Bash(rm:*)",
       "Bash(del \"c:\\Users\\Dread\\Documents\\Documentos Fabs\\Projects\\price-monitor\\src\\app\\favicon.ico\")",
       "Bash(npm install:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(node scripts/test-supabase.js:*)",
+      "Bash(npm run test:supabase:*)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
