@@ -22,6 +22,12 @@ export async function GET() {
     const { data: rpcData, error: rpcError } = await supabase
       .rpc('get_last_check', {});
 
+    console.log('[API /prices] 🔍 RPC Response:');
+    console.log('[API /prices]    - rpcData:', JSON.stringify(rpcData, null, 2));
+    console.log('[API /prices]    - rpcError:', JSON.stringify(rpcError, null, 2));
+    console.log('[API /prices]    - rpcData tipo:', typeof rpcData);
+    console.log('[API /prices]    - rpcData é array?', Array.isArray(rpcData));
+
     let checkData = null;
     let checkError = null;
 
@@ -37,10 +43,25 @@ export async function GET() {
 
       checkData = result.data;
       checkError = result.error;
+
+      console.log('[API /prices] 📋 Fallback result:', JSON.stringify(checkData, null, 2));
     } else if (rpcError) {
+      console.error('[API /prices] ❌ RPC error (não é "does not exist"):', rpcError);
       checkError = rpcError;
     } else {
-      checkData = rpcData?.[0] || rpcData;
+      // RPC sucesso - processa resultado
+      if (Array.isArray(rpcData) && rpcData.length > 0) {
+        checkData = rpcData[0];
+        console.log('[API /prices] ✅ RPC retornou array, usando primeiro item');
+      } else if (rpcData && typeof rpcData === 'object') {
+        checkData = rpcData;
+        console.log('[API /prices] ✅ RPC retornou objeto direto');
+      } else {
+        console.warn('[API /prices] ⚠️  RPC retornou formato inesperado!');
+        checkData = rpcData;
+      }
+
+      console.log('[API /prices] 📋 checkData final:', JSON.stringify(checkData, null, 2));
     }
 
     if (checkError) {
