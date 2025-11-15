@@ -39,14 +39,46 @@ export default function Home() {
       if (data.success) {
         setPrices(data.prices);
 
+        // LOG DO VALOR RAW da API
+        console.log('[Frontend] 📥 lastCheck RAW da API:', data.lastCheck);
+
         // Usa lastCheck do banco se disponível
         const lastCheckTime = data.lastCheck ? new Date(data.lastCheck) : new Date();
-        console.log('[Frontend] ✅ Dados recebidos. LastCheck:', lastCheckTime.toLocaleString('pt-BR'));
-        setLastUpdate(lastCheckTime);
+        console.log('[Frontend] 🕐 lastCheck convertido (local):', lastCheckTime.toLocaleString('pt-BR'));
+        console.log('[Frontend] 🕐 lastCheck ISO:', lastCheckTime.toISOString());
+        console.log('[Frontend] 🕐 lastCheck timestamp (ms):', lastCheckTime.getTime());
+
+        // ⚠️ IMPORTANTE: Só atualiza estado se o timestamp REALMENTE MUDOU
+        // Isso previne reset do countdown quando recebe dados duplicados
+        setLastUpdate(prevLastUpdate => {
+          const prevTime = prevLastUpdate?.getTime() || 0;
+          const newTime = lastCheckTime.getTime();
+
+          if (prevTime !== newTime) {
+            console.log('[Frontend] ✅ lastCheck MUDOU! De', prevLastUpdate?.toLocaleString('pt-BR'), 'para', lastCheckTime.toLocaleString('pt-BR'));
+            return lastCheckTime;
+          } else {
+            console.log('[Frontend] ℹ️  lastCheck NÃO MUDOU (ainda é', lastCheckTime.toLocaleString('pt-BR'), ')');
+            return prevLastUpdate; // Retorna o mesmo objeto para evitar re-render
+          }
+        });
 
         // Calcula próxima atualização baseado no lastCheck do banco
         const nextCheckTime = new Date(lastCheckTime.getTime() + CHECK_INTERVAL);
-        setNextUpdate(nextCheckTime);
+        console.log('[Frontend] ⏭️  Próxima atualização calculada:', nextCheckTime.toLocaleString('pt-BR'));
+
+        setNextUpdate(prevNextUpdate => {
+          const prevTime = prevNextUpdate?.getTime() || 0;
+          const newTime = nextCheckTime.getTime();
+
+          if (prevTime !== newTime) {
+            console.log('[Frontend] ✅ nextUpdate MUDOU!');
+            return nextCheckTime;
+          } else {
+            console.log('[Frontend] ℹ️  nextUpdate NÃO MUDOU');
+            return prevNextUpdate; // Retorna o mesmo objeto para evitar reset do countdown
+          }
+        });
 
         // Histórico já vem junto na API
         if (data.history) {
@@ -100,18 +132,44 @@ export default function Home() {
   useEffect(() => {
     if (!nextUpdate) return;
 
-    const interval = setInterval(() => {
-      const remaining = Math.max(0, nextUpdate.getTime() - Date.now());
-      setCountdown(remaining);
+    console.log('[Frontend] 🎬 useEffect countdown iniciado. nextUpdate:', nextUpdate.toLocaleString('pt-BR'));
 
-      // Quando o contador zerar (ou chegar muito perto), busca novos dados
-      if (remaining <= 1000 && remaining > 0) {
-        console.log('[Frontend] ⏰ Contador zerou! Buscando novos dados...');
+    // Flag para evitar múltiplas chamadas quando countdown zera
+    let hasTriggeredFetch = false;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const target = nextUpdate.getTime();
+      const remaining = target - now;
+
+      // Atualiza o countdown (sempre positivo na UI)
+      setCountdown(Math.max(0, remaining));
+
+      // Log detalhado a cada minuto ou quando estiver perto de zerar
+      const shouldLog = remaining <= 10000 || (remaining % 60000 < 1000);
+      if (shouldLog) {
+        console.log('[Frontend] ⏱️  Countdown:', Math.floor(remaining / 1000), 's restantes');
+      }
+
+      // Quando o contador zerar, busca novos dados (apenas UMA VEZ)
+      if (remaining <= 0 && !hasTriggeredFetch) {
+        console.log('[Frontend] ⏰ Contador ZEROU! Tempo esperado passou. Buscando novos dados...');
+        hasTriggeredFetch = true; // Previne múltiplas chamadas
+        fetchPrices(false);
+      }
+
+      // Se passou MUITO tempo (>2min) do esperado, alerta
+      if (remaining < -120000 && !hasTriggeredFetch) {
+        console.warn('[Frontend] ⚠️  Cron está ATRASADO! Já passou', Math.abs(Math.floor(remaining / 1000)), 's do esperado');
+        hasTriggeredFetch = true;
         fetchPrices(false);
       }
     }, 1000);
 
-    return () => clearInterval(interval);
+    return () => {
+      console.log('[Frontend] 🛑 useEffect countdown limpando interval');
+      clearInterval(interval);
+    };
   }, [nextUpdate, fetchPrices]);
 
   // Formata countdown
