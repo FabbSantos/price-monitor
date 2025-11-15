@@ -15,15 +15,33 @@ export async function GET() {
     // Cria cliente FRESCO para evitar cache
     const supabase = getSupabaseAdmin();
 
-    // 1. Busca timestamp da última verificação
-    console.log('[API /prices] 🔍 Buscando last_check do banco...');
-    console.log('[API /prices] 🔍 Query: SELECT last_check FROM price_checks WHERE id = 1');
+    // 1. Busca timestamp da última verificação usando RPC para FORÇAR BYPASS DE CACHE
+    console.log('[API /prices] 🔍 Buscando last_check do banco com RPC (bypass cache)...');
 
-    const { data: checkData, error: checkError } = await supabase
-      .from('price_checks')
-      .select('last_check')
-      .eq('id', 1)
-      .single();
+    // Usa .rpc() para executar SQL direto e evitar cache do query builder
+    const { data: rpcData, error: rpcError } = await supabase
+      .rpc('get_last_check', {});
+
+    let checkData = null;
+    let checkError = null;
+
+    // Se RPC não existir, fallback para query normal
+    if (rpcError && rpcError.message?.includes('does not exist')) {
+      console.log('[API /prices] ⚠️  RPC não existe, usando query normal...');
+
+      const result = await supabase
+        .from('price_checks')
+        .select('*')
+        .eq('id', 1)
+        .single();
+
+      checkData = result.data;
+      checkError = result.error;
+    } else if (rpcError) {
+      checkError = rpcError;
+    } else {
+      checkData = rpcData?.[0] || rpcData;
+    }
 
     if (checkError) {
       console.error('[API /prices] ❌ Erro ao buscar last_check:', checkError);
