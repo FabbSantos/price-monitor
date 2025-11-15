@@ -51,7 +51,12 @@ export default function Home() {
         if (data.history) {
           // Converte do formato do banco para o formato esperado
           const historyArray: PriceHistoryType[] = Object.entries(data.history).map(([key, entries]) => {
-            const [productId, store] = key.split('-');
+            // Separa no ÚLTIMO hífen para pegar productId-store corretamente
+            // Ex: "tcl-c755-65-magazineluiza" -> productId="tcl-c755-65", store="magazineluiza"
+            const lastDashIndex = key.lastIndexOf('-');
+            const productId = key.substring(0, lastDashIndex);
+            const store = key.substring(lastDashIndex + 1);
+
             return {
               productId,
               store,
