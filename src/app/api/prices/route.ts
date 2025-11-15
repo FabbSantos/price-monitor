@@ -16,7 +16,9 @@ export async function GET() {
     const supabase = getSupabaseAdmin();
 
     // 1. Busca timestamp da última verificação
-    console.log('[API /prices] Buscando last_check do banco...');
+    console.log('[API /prices] 🔍 Buscando last_check do banco...');
+    console.log('[API /prices] 🔍 Query: SELECT last_check FROM price_checks WHERE id = 1');
+
     const { data: checkData, error: checkError } = await supabase
       .from('price_checks')
       .select('last_check')
@@ -25,11 +27,24 @@ export async function GET() {
 
     if (checkError) {
       console.error('[API /prices] ❌ Erro ao buscar last_check:', checkError);
+      console.error('[API /prices] ❌ Erro completo:', JSON.stringify(checkError, null, 2));
     } else {
-      console.log('[API /prices] ✅ last_check do banco:', checkData?.last_check);
+      console.log('[API /prices] ✅ Resposta do Supabase (checkData):');
+      console.log('[API /prices]    - Objeto completo:', JSON.stringify(checkData, null, 2));
+      console.log('[API /prices]    - last_check RAW:', checkData?.last_check);
+      console.log('[API /prices]    - Tipo:', typeof checkData?.last_check);
+
+      // Testa conversão para Date
+      if (checkData?.last_check) {
+        const testDate = new Date(checkData.last_check);
+        console.log('[API /prices]    - Convertido para Date:', testDate.toISOString());
+        console.log('[API /prices]    - Timestamp (ms):', testDate.getTime());
+        console.log('[API /prices]    - Horário local (pt-BR):', testDate.toLocaleString('pt-BR'));
+      }
     }
 
     const lastCheck = checkData?.last_check || null;
+    console.log('[API /prices] 📤 Valor que será retornado (lastCheck):', lastCheck);
 
     // 2. Busca preços atuais
     const { data: pricesData, error: pricesError } = await supabase

@@ -145,22 +145,16 @@ export default function Home() {
       // Atualiza o countdown (sempre positivo na UI)
       setCountdown(Math.max(0, remaining));
 
-      // Log detalhado a cada minuto ou quando estiver perto de zerar
-      const shouldLog = remaining <= 10000 || (remaining % 60000 < 1000);
-      if (shouldLog) {
-        console.log('[Frontend] ⏱️  Countdown:', Math.floor(remaining / 1000), 's restantes');
-      }
-
       // Quando o contador zerar, busca novos dados (apenas UMA VEZ)
       if (remaining <= 0 && !hasTriggeredFetch) {
-        console.log('[Frontend] ⏰ Contador ZEROU! Tempo esperado passou. Buscando novos dados...');
-        hasTriggeredFetch = true; // Previne múltiplas chamadas
+        console.log('[Frontend] ⏰ Contador ZEROU! Buscando novos dados...');
+        hasTriggeredFetch = true;
         fetchPrices(false);
       }
 
       // Se passou MUITO tempo (>2min) do esperado, alerta
       if (remaining < -120000 && !hasTriggeredFetch) {
-        console.warn('[Frontend] ⚠️  Cron está ATRASADO! Já passou', Math.abs(Math.floor(remaining / 1000)), 's do esperado');
+        console.warn('[Frontend] ⚠️  Cron ATRASADO >2min! Buscando...');
         hasTriggeredFetch = true;
         fetchPrices(false);
       }
