@@ -18,24 +18,20 @@ export default function Home() {
   const [countdown, setCountdown] = useState<number>(0);
   const [isManualUpdate, setIsManualUpdate] = useState(false);
 
-  // Ref para pausar polling sem re-criar o intervalo
-  const skipPollingRef = useRef(false);
-
-  // Carrega preços
+  // Carrega preços do banco (NUNCA faz scraping)
+  // Apenas o CRON externo faz scraping chamando /api/scrape
   const fetchPrices = useCallback(async (manual = false) => {
-    // Se é manual, marca flag para pausar polling temporariamente
     if (manual) {
-      console.log('[Frontend] 🔄 Atualização MANUAL iniciada');
+      console.log('[Frontend] 🔄 Atualização MANUAL (busca banco)');
       setIsManualUpdate(true);
-      skipPollingRef.current = true;
     } else {
       console.log('[Frontend] 🔄 Polling automático');
     }
 
     setLoading(true);
     try {
-      // Se manual, faz scraping. Se não, apenas carrega os dados salvos
-      const endpoint = manual ? '/api/scrape' : '/api/prices';
+      // SEMPRE busca do banco - nunca faz scraping no frontend
+      const endpoint = '/api/prices';
       console.log('[Frontend] Chamando:', endpoint);
       const response = await fetch(endpoint);
       const data = await response.json();
@@ -79,40 +75,26 @@ export default function Home() {
       console.error('Erro ao buscar preços:', error);
     } finally {
       setLoading(false);
-
-      // Após atualização manual, aguarda 5s antes de voltar ao polling
       if (manual) {
-        console.log('[Frontend] ⏸️  Polling pausado por 5s');
-        setTimeout(() => {
-          console.log('[Frontend] ▶️  Polling retomado');
-          setIsManualUpdate(false);
-          skipPollingRef.current = false;
-        }, 5000);
+        setIsManualUpdate(false);
       }
     }
   }, []);
 
-  // Atualização automática
+  // Atualização automática via polling
   useEffect(() => {
-    // Carrega dados iniciais (sem fazer scraping)
+    // Carrega dados iniciais do banco
     fetchPrices(false);
 
-    // Polling a cada 30s para ver se há novos dados (quando o cron rodar)
+    // Polling a cada 30s para ver se o cron atualizou o banco
     const pollingInterval = setInterval(() => {
-      // Só faz polling se NÃO estiver em atualização manual
-      // Usa ref para evitar recriar o intervalo quando o estado muda
-      if (!skipPollingRef.current) {
-        fetchPrices(false); // Busca do banco sem scraping
-      }
+      fetchPrices(false);
     }, 30000); // 30 segundos
-
-    // Scraping manual apenas quando o usuário clica (cron faz o resto)
-    // Removido o intervalo automático de scraping no frontend
 
     return () => {
       clearInterval(pollingInterval);
     };
-  }, [fetchPrices]); // Removido isManualUpdate das dependências
+  }, [fetchPrices]);
 
   // Countdown para próxima atualização
   useEffect(() => {
