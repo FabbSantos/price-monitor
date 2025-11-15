@@ -25,14 +25,18 @@ export default function Home() {
   const fetchPrices = useCallback(async (manual = false) => {
     // Se é manual, marca flag para pausar polling temporariamente
     if (manual) {
+      console.log('[Frontend] 🔄 Atualização MANUAL iniciada');
       setIsManualUpdate(true);
       skipPollingRef.current = true;
+    } else {
+      console.log('[Frontend] 🔄 Polling automático');
     }
 
     setLoading(true);
     try {
       // Se manual, faz scraping. Se não, apenas carrega os dados salvos
       const endpoint = manual ? '/api/scrape' : '/api/prices';
+      console.log('[Frontend] Chamando:', endpoint);
       const response = await fetch(endpoint);
       const data = await response.json();
 
@@ -41,6 +45,7 @@ export default function Home() {
 
         // Usa lastCheck do banco se disponível
         const lastCheckTime = data.lastCheck ? new Date(data.lastCheck) : new Date();
+        console.log('[Frontend] ✅ Dados recebidos. LastCheck:', lastCheckTime.toLocaleString('pt-BR'));
         setLastUpdate(lastCheckTime);
 
         // Calcula próxima atualização baseado no lastCheck do banco
@@ -77,7 +82,9 @@ export default function Home() {
 
       // Após atualização manual, aguarda 5s antes de voltar ao polling
       if (manual) {
+        console.log('[Frontend] ⏸️  Polling pausado por 5s');
         setTimeout(() => {
+          console.log('[Frontend] ▶️  Polling retomado');
           setIsManualUpdate(false);
           skipPollingRef.current = false;
         }, 5000);
@@ -114,10 +121,16 @@ export default function Home() {
     const interval = setInterval(() => {
       const remaining = Math.max(0, nextUpdate.getTime() - Date.now());
       setCountdown(remaining);
+
+      // Quando o contador zerar (ou chegar muito perto), busca novos dados
+      if (remaining <= 1000 && remaining > 0) {
+        console.log('[Frontend] ⏰ Contador zerou! Buscando novos dados...');
+        fetchPrices(false);
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [nextUpdate]);
+  }, [nextUpdate, fetchPrices]);
 
   // Formata countdown
   const formatCountdown = (ms: number) => {
