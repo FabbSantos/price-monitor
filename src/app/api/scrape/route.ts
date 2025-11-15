@@ -147,67 +147,94 @@ async function addToHistoryIfChanged(supabase: ReturnType<typeof getSupabaseAdmi
  */
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
+  const isCron = request.headers.get('user-agent')?.includes('curl') ||
+                 request.headers.get('x-vercel-cron') === '1';
+
+  console.log('='.repeat(80));
+  console.log('[API] 🚀 SCRAPE INICIADO');
+  console.log('[API] Timestamp:', new Date().toISOString());
+  console.log('[API] Método:', request.method);
+  console.log('[API] Origem:', isCron ? 'CRON JOB' : 'MANUAL');
+  console.log('[API] User-Agent:', request.headers.get('user-agent'));
+  console.log('='.repeat(80));
 
   try {
-    console.log('[API] Iniciando scraping de preços...');
+    console.log('[API] Iniciando scraping de preços em PARALELO...');
 
-    const results: PriceData[] = [];
     const notifier = getNotifier();
     const ntfyNotifier = getNtfyNotifier();
 
-    // Itera por cada produto
+    // Cria array de promises para scraping paralelo
+    const scrapingTasks: Promise<PriceData>[] = [];
+
     for (const product of productsConfig.products) {
-      // Itera por cada loja habilitada
       for (const store of productsConfig.stores) {
         if (!store.enabled) continue;
 
         const url = product.urls[store.id as keyof typeof product.urls];
         if (!url) continue;
 
-        console.log(`[API] Scraping ${product.name} em ${store.name}...`);
+        // Cria uma promise para cada scraping
+        const task = (async () => {
+          console.log(`[API] 🚀 Iniciando scraping: ${product.name} em ${store.name}...`);
 
-        try {
-          const scraper = getScraperForStore(store.id);
-          const result = await scraper.scrape(url);
+          try {
+            const scraper = getScraperForStore(store.id);
+            const result = await scraper.scrape(url);
 
-          const priceData: PriceData = {
-            productId: product.id,
-            productName: product.name,
-            store: store.id,
-            storeName: store.name,
-            price: result.price,
-            url,
-            timestamp: new Date().toISOString(),
-            error: result.error,
-            available: result.available,
-          };
+            console.log(`[API] ✅ Completado: ${product.name} em ${store.name}`);
 
-          results.push(priceData);
-        } catch (error) {
-          console.error(`[API] Erro ao scraping ${product.name} em ${store.name}:`, error);
+            return {
+              productId: product.id,
+              productName: product.name,
+              store: store.id,
+              storeName: store.name,
+              price: result.price,
+              url,
+              timestamp: new Date().toISOString(),
+              error: result.error,
+              available: result.available,
+            } as PriceData;
+          } catch (error) {
+            console.error(`[API] ❌ Erro: ${product.name} em ${store.name}:`, error);
 
-          // Adiciona resultado com erro
-          results.push({
-            productId: product.id,
-            productName: product.name,
-            store: store.id,
-            storeName: store.name,
-            price: null,
-            url,
-            timestamp: new Date().toISOString(),
-            error: error instanceof Error ? error.message : 'Erro desconhecido',
-            available: false,
-          });
-        }
+            return {
+              productId: product.id,
+              productName: product.name,
+              store: store.id,
+              storeName: store.name,
+              price: null,
+              url,
+              timestamp: new Date().toISOString(),
+              error: error instanceof Error ? error.message : 'Erro desconhecido',
+              available: false,
+            } as PriceData;
+          }
+        })();
+
+        scrapingTasks.push(task);
       }
     }
+
+    console.log(`[API] 📊 Total de ${scrapingTasks.length} scraping tasks criadas. Executando em paralelo...`);
+
+    // Executa todos os scrapings em paralelo
+    const results = await Promise.all(scrapingTasks);
+
+    console.log(`[API] 📦 Todos os scrapings completados: ${results.length} resultados`);
 
     // Salva os resultados no Supabase e pega os que mudaram
     const changedPrices = await savePricesToSupabase(results);
 
     const duration = Date.now() - startTime;
 
-    console.log(`[API] Scraping concluído em ${duration}ms. ${results.length} preços coletados.`);
+    console.log('='.repeat(80));
+    console.log('[API] ✅ SCRAPE CONCLUÍDO COM SUCESSO');
+    console.log('[API] Duração:', duration, 'ms');
+    console.log('[API] Preços coletados:', results.length);
+    console.log('[API] Preços que mudaram:', changedPrices.length);
+    console.log('[API] Timestamp final:', new Date().toISOString());
+    console.log('='.repeat(80));
 
     // Envia notificações APENAS para os preços que mudaram
     if (changedPrices.length > 0) {
@@ -283,4 +310,12 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Suporta POST também (caso o cron use POST em vez de GET)
+ */
+export async function POST(request: NextRequest) {
+  console.log('[API] ⚠️  POST recebido, redirecionando para GET handler...');
+  return GET(request);
 }

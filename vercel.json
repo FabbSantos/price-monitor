@@ -5,5 +5,10 @@
   "regions": ["gru1"],
   "env": {
     "CHECK_INTERVAL": "15"
+  },
+  "functions": {
+    "src/app/api/scrape/route.ts": {
+      "maxDuration": 60
+    }
   }
 }

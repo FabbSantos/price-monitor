@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { PriceCard } from '@/components/PriceCard';
 import { PriceHistory } from '@/components/PriceHistory';
 import { PriceData, PriceHistory as PriceHistoryType } from '@/lib/types';
@@ -18,11 +18,15 @@ export default function Home() {
   const [countdown, setCountdown] = useState<number>(0);
   const [isManualUpdate, setIsManualUpdate] = useState(false);
 
+  // Ref para pausar polling sem re-criar o intervalo
+  const skipPollingRef = useRef(false);
+
   // Carrega preços
   const fetchPrices = useCallback(async (manual = false) => {
     // Se é manual, marca flag para pausar polling temporariamente
     if (manual) {
       setIsManualUpdate(true);
+      skipPollingRef.current = true;
     }
 
     setLoading(true);
@@ -70,6 +74,7 @@ export default function Home() {
       if (manual) {
         setTimeout(() => {
           setIsManualUpdate(false);
+          skipPollingRef.current = false;
         }, 5000);
       }
     }
@@ -83,7 +88,8 @@ export default function Home() {
     // Polling a cada 30s para ver se há novos dados (quando o cron rodar)
     const pollingInterval = setInterval(() => {
       // Só faz polling se NÃO estiver em atualização manual
-      if (!isManualUpdate) {
+      // Usa ref para evitar recriar o intervalo quando o estado muda
+      if (!skipPollingRef.current) {
         fetchPrices(false); // Busca do banco sem scraping
       }
     }, 30000); // 30 segundos
@@ -94,7 +100,7 @@ export default function Home() {
     return () => {
       clearInterval(pollingInterval);
     };
-  }, [fetchPrices, isManualUpdate]);
+  }, [fetchPrices]); // Removido isManualUpdate das dependências
 
   // Countdown para próxima atualização
   useEffect(() => {

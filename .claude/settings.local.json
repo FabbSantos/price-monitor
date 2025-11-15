@@ -8,7 +8,9 @@
       "Bash(node scripts/test-supabase.js:*)",
       "Bash(npm run test:supabase:*)",
       "Bash(npm run dev:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(node test-cron.js:*)",
+      "Bash(time curl:*)"
     ],
     "deny": [],
     "ask": []
