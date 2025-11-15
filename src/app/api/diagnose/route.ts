@@ -97,7 +97,10 @@ export async function GET(request: NextRequest) {
       .eq('id', 1)
       .single();
 
-    const isPersisted = verifyData?.last_check === testTimestamp;
+    // Normaliza timestamps para comparação (converte ambos para Date e compara milliseconds)
+    const expectedTime = new Date(testTimestamp).getTime();
+    const actualTime = verifyData?.last_check ? new Date(verifyData.last_check).getTime() : 0;
+    const isPersisted = Math.abs(expectedTime - actualTime) < 1000; // Tolerância de 1 segundo
 
     results.tests.push({
       name: 'Verificação de persistência',
@@ -105,6 +108,9 @@ export async function GET(request: NextRequest) {
       error: verifyError,
       expectedTimestamp: testTimestamp,
       actualTimestamp: verifyData?.last_check,
+      expectedTime,
+      actualTime,
+      difference: Math.abs(expectedTime - actualTime),
       matches: isPersisted,
       data: verifyData,
     });
@@ -114,6 +120,7 @@ export async function GET(request: NextRequest) {
     } else {
       console.log('[TEST 4] Timestamp esperado:', testTimestamp);
       console.log('[TEST 4] Timestamp lido:', verifyData?.last_check);
+      console.log('[TEST 4] Diferença (ms):', Math.abs(expectedTime - actualTime));
       console.log('[TEST 4] Match:', isPersisted ? '✅ SIM - PERSISTIU!' : '❌ NÃO - NÃO PERSISTIU!');
     }
 

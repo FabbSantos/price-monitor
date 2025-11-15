@@ -7,11 +7,16 @@ import productsConfig from '../../../../config/products.json';
  * GET /api/prices
  */
 export async function GET() {
+  const requestTime = new Date().toISOString();
+  console.log('='.repeat(60));
+  console.log('[API /prices] 📊 Requisição recebida:', requestTime);
+
   try {
     // Cria cliente FRESCO para evitar cache
     const supabase = getSupabaseAdmin();
 
     // 1. Busca timestamp da última verificação
+    console.log('[API /prices] Buscando last_check do banco...');
     const { data: checkData, error: checkError } = await supabase
       .from('price_checks')
       .select('last_check')
@@ -19,7 +24,9 @@ export async function GET() {
       .single();
 
     if (checkError) {
-      console.error('[API /prices] Erro ao buscar last_check:', checkError);
+      console.error('[API /prices] ❌ Erro ao buscar last_check:', checkError);
+    } else {
+      console.log('[API /prices] ✅ last_check do banco:', checkData?.last_check);
     }
 
     const lastCheck = checkData?.last_check || null;
@@ -81,6 +88,12 @@ export async function GET() {
         price: Number(h.price),
       });
     });
+
+    console.log('[API /prices] ✅ Retornando dados:');
+    console.log('[API /prices]    - lastCheck:', lastCheck);
+    console.log('[API /prices]    - Preços:', prices.length);
+    console.log('[API /prices]    - Histórico:', Object.keys(history).length, 'produtos');
+    console.log('='.repeat(60));
 
     return NextResponse.json({
       success: true,
