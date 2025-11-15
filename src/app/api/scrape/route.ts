@@ -19,6 +19,8 @@ async function savePricesToSupabase(prices: PriceData[]): Promise<PriceData[]> {
     console.log('[Supabase] Iniciando salvamento de', prices.length, 'preços...');
 
     // 1. Atualiza timestamp da última verificação
+    console.log('[Supabase] Tentando atualizar price_checks para timestamp:', timestamp);
+
     const { data: checkData, error: checkError } = await supabase
       .from('price_checks')
       .update({ last_check: timestamp })
@@ -26,9 +28,12 @@ async function savePricesToSupabase(prices: PriceData[]): Promise<PriceData[]> {
       .select();
 
     if (checkError) {
-      console.error('[Supabase] ERRO ao atualizar price_checks:', checkError);
+      console.error('[Supabase] ❌ ERRO ao atualizar price_checks:', checkError);
+      console.error('[Supabase] Erro completo:', JSON.stringify(checkError, null, 2));
     } else {
-      console.log('[Supabase] price_checks atualizado:', checkData);
+      console.log('[Supabase] ✅ price_checks atualizado com sucesso!');
+      console.log('[Supabase] Dados retornados:', JSON.stringify(checkData, null, 2));
+      console.log('[Supabase] Linhas afetadas:', checkData?.length || 0);
     }
 
     // 2. UPSERT dos preços atuais (substitui preços antigos)
@@ -51,9 +56,11 @@ async function savePricesToSupabase(prices: PriceData[]): Promise<PriceData[]> {
       .select();
 
     if (pricesError) {
-      console.error('[Supabase] ERRO ao salvar current_prices:', pricesError);
+      console.error('[Supabase] ❌ ERRO ao salvar current_prices:', pricesError);
+      console.error('[Supabase] Erro completo:', JSON.stringify(pricesError, null, 2));
     } else {
-      console.log('[Supabase] current_prices salvos:', pricesData?.length, 'linhas');
+      console.log('[Supabase] ✅ current_prices salvos com sucesso!');
+      console.log('[Supabase] Linhas afetadas:', pricesData?.length || 0);
     }
 
     // 3. Adiciona ao histórico apenas se houve mudança significativa (>5%)
