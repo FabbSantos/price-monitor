@@ -6,6 +6,11 @@ import { PriceData } from '@/lib/types';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import productsConfig from '../../../../config/products.json';
 
+// Força a rota a ser dinâmica (não cacheada) - CRITICAL para Vercel
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const maxDuration = 60; // Timeout de 60s para scraping
+
 /**
  * Salva preços no Supabase
  * Retorna os preços que tiveram mudança significativa (para notificar)
@@ -298,14 +303,23 @@ export async function GET(request: NextRequest) {
       });
     });
 
-    return NextResponse.json({
-      success: true,
-      prices: results,
-      lastCheck: checkData?.last_check || new Date().toISOString(),
-      history,
-      timestamp: new Date().toISOString(),
-      duration,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        prices: results,
+        lastCheck: checkData?.last_check || new Date().toISOString(),
+        history,
+        timestamp: new Date().toISOString(),
+        duration,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
+    );
   } catch (error) {
     console.error('[API] Erro geral no scraping:', error);
 
@@ -314,7 +328,14 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : 'Erro desconhecido',
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
     );
   }
 }

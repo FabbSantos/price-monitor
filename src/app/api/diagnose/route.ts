@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 
+// Força a rota a ser dinâmica (não cacheada) - CRITICAL para Vercel
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /**
  * Endpoint de diagnóstico para identificar problemas de persistência no Supabase
  * GET /api/diagnose
@@ -214,7 +218,14 @@ export async function GET(request: NextRequest) {
     console.log('[DIAGNOSE] Status geral:', allPassed ? '✅ TODOS PASSARAM' : '❌ ALGUNS FALHARAM');
     console.log('='.repeat(80));
 
-    return NextResponse.json(results, { status: 200 });
+    return NextResponse.json(results, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
 
   } catch (error) {
     console.error('[DIAGNOSE] ❌ Erro geral:', error);
@@ -223,6 +234,13 @@ export async function GET(request: NextRequest) {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       stack: error instanceof Error ? error.stack : undefined,
-    }, { status: 500 });
+    }, {
+      status: 500,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
   }
 }

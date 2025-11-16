@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import productsConfig from '../../../../config/products.json';
 
+// Força a rota a ser dinâmica (não cacheada) - CRITICAL para Vercel
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /**
  * API Route para buscar preços do Supabase
  * GET /api/prices
@@ -149,13 +153,22 @@ export async function GET() {
     console.log('[API /prices]    - Histórico:', Object.keys(history).length, 'produtos');
     console.log('='.repeat(60));
 
-    return NextResponse.json({
-      success: true,
-      lastCheck,
-      prices,
-      history,
-      timestamp: new Date().toISOString(),
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        lastCheck,
+        prices,
+        history,
+        timestamp: new Date().toISOString(),
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
+    );
   } catch (error) {
     console.error('[API /prices] Erro geral:', error);
 
@@ -167,7 +180,14 @@ export async function GET() {
         prices: [],
         history: {},
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
     );
   }
 }

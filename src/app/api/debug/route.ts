@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 
+// Força a rota a ser dinâmica (não cacheada) - CRITICAL para Vercel
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /**
  * Endpoint de debug para verificar estado do Supabase
  * GET /api/debug
@@ -39,28 +43,37 @@ export async function GET() {
       .from('price_history')
       .select('*', { count: 'exact', head: true });
 
-    return NextResponse.json({
-      success: true,
-      timestamp: new Date().toISOString(),
-      environment: {
-        hasSupabaseUrl: hasUrl,
-        hasSupabaseAnonKey: hasAnonKey,
-        hasSupabaseServiceKey: hasServiceKey,
-        nodeEnv: process.env.NODE_ENV,
-        vercelEnv: process.env.VERCEL_ENV || 'local',
+    return NextResponse.json(
+      {
+        success: true,
+        timestamp: new Date().toISOString(),
+        environment: {
+          hasSupabaseUrl: hasUrl,
+          hasSupabaseAnonKey: hasAnonKey,
+          hasSupabaseServiceKey: hasServiceKey,
+          nodeEnv: process.env.NODE_ENV,
+          vercelEnv: process.env.VERCEL_ENV || 'local',
+        },
+        database: {
+          lastCheck: checkData?.last_check || null,
+          lastCheckError: checkError?.message || null,
+          currentPricesCount: pricesCount || 0,
+          pricesError: pricesError?.message || null,
+          historyCount: historyCount || 0,
+          historyError: historyError?.message || null,
+        },
+        timeSinceLastCheck: checkData?.last_check
+          ? Math.floor((Date.now() - new Date(checkData.last_check).getTime()) / 1000 / 60)
+          : null,
       },
-      database: {
-        lastCheck: checkData?.last_check || null,
-        lastCheckError: checkError?.message || null,
-        currentPricesCount: pricesCount || 0,
-        pricesError: pricesError?.message || null,
-        historyCount: historyCount || 0,
-        historyError: historyError?.message || null,
-      },
-      timeSinceLastCheck: checkData?.last_check
-        ? Math.floor((Date.now() - new Date(checkData.last_check).getTime()) / 1000 / 60)
-        : null,
-    });
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
+    );
   } catch (error) {
     return NextResponse.json(
       {
@@ -68,7 +81,14 @@ export async function GET() {
         error: error instanceof Error ? error.message : 'Erro desconhecido',
         stack: error instanceof Error ? error.stack : null,
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
     );
   }
 }
