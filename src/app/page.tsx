@@ -6,18 +6,16 @@ import { ProductDetailModal } from '@/components/ProductDetailModal';
 import { CategorySidebar } from '@/components/CategorySidebar';
 import { PriceData, PriceHistory as PriceHistoryType } from '@/lib/types';
 import productsConfig from '../../config/products.json';
-import { RefreshCw, Clock, Zap, TrendingDown } from 'lucide-react';
+import { Clock, Zap, TrendingDown } from 'lucide-react';
 
 const CHECK_INTERVAL = parseInt(process.env.NEXT_PUBLIC_CHECK_INTERVAL || '120') * 60 * 1000; // 2 horas default
 
 export default function Home() {
   const [prices, setPrices] = useState<PriceData[]>([]);
   const [history, setHistory] = useState<PriceHistoryType[]>([]);
-  const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [nextUpdate, setNextUpdate] = useState<Date | null>(null);
   const [countdown, setCountdown] = useState<number>(0);
-  const [isManualUpdate, setIsManualUpdate] = useState(false);
 
   // Estado do catálogo
   const [activeCategory, setActiveCategory] = useState('all');
@@ -25,15 +23,9 @@ export default function Home() {
 
   // Carrega preços do banco (NUNCA faz scraping)
   // Apenas o CRON externo faz scraping chamando /api/scrape
-  const fetchPrices = useCallback(async (manual = false) => {
-    if (manual) {
-      console.log('[Frontend] 🔄 Atualização MANUAL (busca banco)');
-      setIsManualUpdate(true);
-    } else {
-      console.log('[Frontend] 🔄 Polling automático');
-    }
+  const fetchPrices = useCallback(async () => {
+    console.log('[Frontend] 🔄 Polling automático');
 
-    setLoading(true);
     try {
       // SEMPRE busca do banco - nunca faz scraping no frontend
       const endpoint = '/api/prices';
@@ -116,22 +108,17 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Erro ao buscar preços:', error);
-    } finally {
-      setLoading(false);
-      if (manual) {
-        setIsManualUpdate(false);
-      }
     }
   }, []);
 
   // Atualização automática via polling
   useEffect(() => {
     // Carrega dados iniciais do banco
-    fetchPrices(false);
+    fetchPrices();
 
     // Polling a cada 30s para ver se o cron atualizou o banco
     const pollingInterval = setInterval(() => {
-      fetchPrices(false);
+      fetchPrices();
     }, 30000); // 30 segundos
 
     return () => {
@@ -160,14 +147,14 @@ export default function Home() {
       if (remaining <= 0 && !hasTriggeredFetch) {
         console.log('[Frontend] ⏰ Contador ZEROU! Buscando novos dados...');
         hasTriggeredFetch = true;
-        fetchPrices(false);
+        fetchPrices();
       }
 
       // Se passou MUITO tempo (>2min) do esperado, alerta
       if (remaining < -120000 && !hasTriggeredFetch) {
         console.warn('[Frontend] ⚠️  Cron ATRASADO >2min! Buscando...');
         hasTriggeredFetch = true;
-        fetchPrices(false);
+        fetchPrices();
       }
     }, 1000);
 
@@ -269,28 +256,20 @@ export default function Home() {
       <div className="max-w-7xl mx-auto relative">
         {/* Header */}
         <header className="mb-8">
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6">
             <div className="relative">
-              <h1 className="text-4xl md:text-5xl font-bold text-white relative inline-block">
+              <h1 className="text-3xl md:text-5xl font-bold text-white relative inline-block">
                 Monitor de Preços
                 {/* Subtle glow effect */}
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-emerald-600/20 blur-2xl -z-10" />
               </h1>
-              <p className="text-gray-400 mt-2">Acompanhe os melhores preços em tempo real</p>
+              <p className="text-gray-400 mt-2 text-sm md:text-base">Acompanhe os melhores preços em tempo real</p>
             </div>
-            <button
-              onClick={() => fetchPrices(true)}
-              disabled={loading}
-              className="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-xl font-semibold transition-all disabled:opacity-50 flex items-center gap-2 border border-white/10"
-            >
-              <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
-              {loading ? 'Atualizando...' : 'Atualizar'}
-            </button>
           </div>
 
           {/* Status bar */}
           <div className="glass rounded-xl p-4 grid grid-cols-1 md:grid-cols-3 gap-4 border border-white/5">
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center md:justify-center gap-3">
               <div className="p-2 rounded-lg bg-blue-500/10">
                 <Clock className="text-blue-400" size={20} />
               </div>
@@ -301,7 +280,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center md:justify-center gap-3">
               <div className="p-2 rounded-lg bg-amber-500/10">
                 <Zap className="text-amber-400" size={20} />
               </div>
@@ -310,7 +289,7 @@ export default function Home() {
                 <div className="font-semibold text-white">{formatCountdown(countdown)}</div>
               </div>
             </div>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center md:justify-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-500/10">
                 <TrendingDown className="text-emerald-400" size={20} />
               </div>

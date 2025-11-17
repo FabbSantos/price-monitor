@@ -60,28 +60,28 @@ export function ProductDetailModal({
       {/* Modal */}
       <div className="relative w-full max-w-6xl max-h-[90vh] overflow-hidden bg-gray-900/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-gray-900 border-b border-white/10 px-6 py-4 flex items-center justify-between">
-          <div className="flex gap-4 items-center flex-1">
+        <div className="sticky flex flex-col md:flex-row top-0 z-10 bg-gray-900 border-b border-white/10 px-4 md:px-6 py-3 md:py-4">
+          <div className="flex items-start gap-3 md:gap-4">
             {/* Imagem do produto */}
             {product.image && (
-              <div className="relative w-16 h-16 bg-white/5 rounded-lg overflow-hidden flex-shrink-0">
+              <div className="relative w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-lg overflow-hidden flex-shrink-0">
                 <Image
                   src={product.image}
                   alt={product.name}
                   fill
-                  className="object-contain p-2"
+                  className="object-contain p-1 md:p-2"
                 />
               </div>
             )}
 
             {/* Info do produto */}
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold text-white mb-1">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg md:text-2xl font-bold text-white mb-1 line-clamp-1">
                 {product.name}
               </h2>
-              <div className="flex items-center gap-4 text-sm">
-                <p className="text-gray-400">{product.description}</p>
-                <span className="text-gray-600">•</span>
+              <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 text-xs md:text-sm">
+                <p className="text-gray-400 line-clamp-1">{product.description}</p>
+                <span className="text-gray-600 hidden md:inline">•</span>
                 <p className="text-gray-500">
                   Alerta:{' '}
                   <span className="text-purple-400 font-semibold">
@@ -90,15 +90,15 @@ export function ProductDetailModal({
                 </p>
               </div>
             </div>
-          </div>
 
-          {/* Botão fechar */}
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0"
-          >
-            <X size={20} />
-          </button>
+            {/* Botão fechar */}
+            <button
+              onClick={onClose}
+              className="p-1.5 md:p-2 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0"
+            >
+              <X size={18} className="md:w-5 md:h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Conteúdo com scroll */}
