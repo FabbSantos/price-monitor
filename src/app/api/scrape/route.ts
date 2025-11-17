@@ -248,13 +248,14 @@ export async function GET(request: NextRequest) {
     console.log('[API] Timestamp final:', new Date().toISOString());
     console.log('='.repeat(80));
 
-    // Envia notificações APENAS para os preços que mudaram
-    if (changedPrices.length > 0) {
-      console.log(`[API] Enviando notificações para ${changedPrices.length} preços que mudaram...`);
+    // Cria mapa de preços-alvo
+    const targetPricesMap = new Map(
+      productsConfig.products.map(p => [p.id, p.targetPrice])
+    );
 
-      const targetPricesMap = new Map(
-        productsConfig.products.map(p => [p.id, p.targetPrice])
-      );
+    // Envia notificações individuais APENAS para mudanças que atingiram o alvo
+    if (changedPrices.length > 0) {
+      console.log(`[API] Verificando alertas de alvo atingido...`);
 
       for (const priceData of changedPrices) {
         const targetPrice = targetPricesMap.get(priceData.productId) || 0;
@@ -269,12 +270,11 @@ export async function GET(request: NextRequest) {
           ]);
         }
       }
-
-      // Envia summary via ntfy
-      await ntfyNotifier.sendSummary(changedPrices, targetPricesMap);
-    } else {
-      console.log('[API] Nenhuma mudança de preço detectada. Sem notificações.');
     }
+
+    // Envia summary via ntfy SEMPRE (com TODOS os preços)
+    console.log('[API] Enviando resumo via ntfy...');
+    await ntfyNotifier.sendSummary(results, targetPricesMap);
 
     // Busca os dados salvos do banco para retornar (igual /api/prices)
     // Usa cliente FRESCO para garantir dados atualizados

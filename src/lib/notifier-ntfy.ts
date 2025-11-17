@@ -115,14 +115,12 @@ export class NtfyNotifier {
   }
 
   /**
-   * Envia summary de todos os preços (após cada rodada)
+   * Envia summary COMPACTO de todos os preços (toda execução do cron)
    */
   async sendSummary(prices: PriceData[], targetPrices: Map<string, number>): Promise<void> {
     if (!this.topic) return;
 
     try {
-      let message = '📊 RESUMO DE PRECOS\n\n';
-
       // Agrupa por produto
       const byProduct = new Map<string, PriceData[]>();
       prices.forEach(p => {
@@ -132,39 +130,98 @@ export class NtfyNotifier {
         byProduct.get(p.productId)!.push(p);
       });
 
-      // Para cada produto
+      // Estatísticas
+      let productsOnTarget = 0;
+      let productsNearTarget = 0; // até 10% acima
+      let productsAboveTarget = 0;
+      let unavailableCount = 0;
+      const errorStores = new Set<string>();
+
+      let message = `📊 RESUMO - ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}\n\n`;
+
+      // Detalhes por produto
+      const productDetails: string[] = [];
+
       byProduct.forEach((productPrices, productId) => {
         const productName = productPrices[0].productName;
         const targetPrice = targetPrices.get(productId) || 0;
 
-        message += `${productName}\n`;
-        message += `Meta: R$ ${targetPrice.toFixed(2).replace('.', ',')}\n\n`;
+        // Encontra melhor preço disponível
+        const availablePrices = productPrices.filter(p => p.price !== null && p.available);
 
-        // Para cada loja
+        if (availablePrices.length === 0) {
+          unavailableCount++;
+          productDetails.push(`❌ ${productName}\n   Nenhuma loja disponível\n`);
+
+          // Registra lojas com erro
+          productPrices.forEach(p => {
+            if (p.error) errorStores.add(p.storeName);
+          });
+          return;
+        }
+
+        const bestPrice = availablePrices.reduce((min, p) =>
+          (p.price! < min.price!) ? p : min
+        );
+
+        const diff = bestPrice.price! - targetPrice;
+        const diffPercent = (diff / targetPrice) * 100;
+
+        if (diff <= 0) {
+          // NO ALVO!
+          productsOnTarget++;
+          const savings = Math.abs(diff);
+          productDetails.push(
+            `🎯 ${productName}\n` +
+            `   R$ ${bestPrice.price!.toFixed(2).replace('.', ',')} (${bestPrice.storeName}) ← NO ALVO!\n` +
+            `   Economia: R$ ${savings.toFixed(2).replace('.', ',')}\n`
+          );
+        } else if (diffPercent <= 10) {
+          // PRÓXIMO do alvo (até 10% acima)
+          productsNearTarget++;
+          productDetails.push(
+            `⚡ ${productName}\n` +
+            `   R$ ${bestPrice.price!.toFixed(2).replace('.', ',')} (${bestPrice.storeName})\n` +
+            `   Meta: R$ ${targetPrice.toFixed(2).replace('.', ',')} (+${diffPercent.toFixed(1)}%)\n`
+          );
+        } else {
+          // Acima do alvo
+          productsAboveTarget++;
+          productDetails.push(
+            `⚠️ ${productName}\n` +
+            `   R$ ${bestPrice.price!.toFixed(2).replace('.', ',')} (${bestPrice.storeName})\n` +
+            `   Meta: R$ ${targetPrice.toFixed(2).replace('.', ',')} (+${diffPercent.toFixed(0)}%)\n`
+          );
+        }
+
+        // Registra lojas com erro
         productPrices.forEach(p => {
-          if (p.price === null || !p.available) {
-            message += `❌ ${p.storeName}: Nao encontrado\n`;
-          } else if (p.price <= targetPrice) {
-            const savings = targetPrice - p.price;
-            message += `🎯 ${p.storeName}: R$ ${p.price.toFixed(2).replace('.', ',')} (BOM PRECO! -R$ ${savings.toFixed(2).replace('.', ',')})\n`;
-          } else {
-            const diff = p.price - targetPrice;
-            message += `⚠️ ${p.storeName}: R$ ${p.price.toFixed(2).replace('.', ',')} (+R$ ${diff.toFixed(2).replace('.', ',')})\n`;
-          }
+          if (p.error) errorStores.add(p.storeName);
         });
-
-        message += '\n';
       });
 
-      message += `\n⏰ ${new Date().toLocaleString('pt-BR')}\n`;
-      message += '🔗 Abra o app para ver os links';
+      // Header com estatísticas
+      message += `✅ ${byProduct.size} produtos monitorados\n`;
+      if (productsOnTarget > 0) message += `🎯 ${productsOnTarget} no alvo!\n`;
+      if (productsNearTarget > 0) message += `⚡ ${productsNearTarget} próximo${productsNearTarget > 1 ? 's' : ''}\n`;
+      if (productsAboveTarget > 0) message += `⚠️ ${productsAboveTarget} acima\n`;
+      if (unavailableCount > 0) message += `❌ ${unavailableCount} indisponível${unavailableCount > 1 ? 'is' : ''}\n`;
+      message += '\n';
+
+      // Adiciona detalhes dos produtos
+      message += productDetails.join('\n');
+
+      // Lojas com erro (no final)
+      if (errorStores.size > 0) {
+        message += `\n🚫 Lojas bloqueadas: ${Array.from(errorStores).join(', ')}\n`;
+      }
 
       const response = await fetch(`${this.server}/${this.topic}`, {
         method: 'POST',
         headers: {
-          'Title': 'Resumo de Precos',
-          'Priority': 'default',
-          'Tags': 'chart_with_upwards_trend',
+          'Title': productsOnTarget > 0 ? '🎯 Alvo Atingido!' : 'Resumo de Preços',
+          'Priority': productsOnTarget > 0 ? 'high' : 'default',
+          'Tags': productsOnTarget > 0 ? 'moneybag,tada' : 'chart_with_upwards_trend',
         },
         body: message,
       });

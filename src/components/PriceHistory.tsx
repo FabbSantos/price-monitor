@@ -22,7 +22,7 @@ export function PriceHistory({ history, productId }: PriceHistoryProps) {
   }
 
   // Prepara dados para o gráfico
-  const chartData = productHistory.flatMap((h) =>
+  const rawData = productHistory.flatMap((h) =>
     h.prices.map((p) => ({
       timestamp: new Date(p.timestamp).getTime(),
       price: p.price,
@@ -32,7 +32,69 @@ export function PriceHistory({ history, productId }: PriceHistoryProps) {
   );
 
   // Ordena por timestamp
-  chartData.sort((a, b) => a.timestamp - b.timestamp);
+  rawData.sort((a, b) => a.timestamp - b.timestamp);
+
+  // Interpola dados para incluir todos os dias mesmo quando o preço não mudou
+  const chartData: Array<{ timestamp: number; price: number; store: string; date: string }> = [];
+
+  if (rawData.length > 0) {
+    // Normaliza timestamps para início do dia (00:00:00)
+    const normalizeToDay = (timestamp: number) => {
+      const date = new Date(timestamp);
+      date.setHours(0, 0, 0, 0);
+      return date.getTime();
+    };
+
+    const firstDay = normalizeToDay(rawData[0].timestamp);
+    const lastDay = normalizeToDay(rawData[rawData.length - 1].timestamp);
+
+    // Cria mapa de preços por dia
+    const pricesByDay = new Map<number, { price: number; store: string; date: string; timestamp: number }>();
+    rawData.forEach((d) => {
+      const day = normalizeToDay(d.timestamp);
+      // Se já existe preço neste dia, mantém o mais recente
+      if (!pricesByDay.has(day) || d.timestamp > pricesByDay.get(day)!.timestamp) {
+        pricesByDay.set(day, {
+          price: d.price,
+          store: d.store,
+          date: format(new Date(day), 'dd/MM', { locale: ptBR }),
+          timestamp: d.timestamp,
+        });
+      }
+    });
+
+    // Gera pontos para cada dia no intervalo
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    let currentDay = firstDay;
+    let lastKnownPrice = rawData[0].price;
+
+    while (currentDay <= lastDay) {
+      if (pricesByDay.has(currentDay)) {
+        // Usa o preço real deste dia
+        const dayData = pricesByDay.get(currentDay)!;
+        chartData.push({
+          timestamp: currentDay,
+          ...dayData,
+        });
+        lastKnownPrice = dayData.price;
+      } else {
+        // Usa o último preço conhecido (forward fill)
+        chartData.push({
+          timestamp: currentDay,
+          price: lastKnownPrice,
+          store: rawData[0].store,
+          date: format(new Date(currentDay), 'dd/MM', { locale: ptBR }),
+        });
+      }
+
+      currentDay += oneDayMs;
+    }
+  }
+
+  // Debug: mostra quantos pontos foram gerados
+  console.log('[PriceHistory] Pontos originais:', rawData.length);
+  console.log('[PriceHistory] Pontos interpolados:', chartData.length);
+  console.log('[PriceHistory] Dados do gráfico:', chartData);
 
   return (
     <div className="glass rounded-xl p-6">

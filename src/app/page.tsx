@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { PriceCard } from '@/components/PriceCard';
-import { PriceHistory } from '@/components/PriceHistory';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { ProductCatalogCard } from '@/components/ProductCatalogCard';
+import { ProductDetailModal } from '@/components/ProductDetailModal';
+import { CategorySidebar } from '@/components/CategorySidebar';
 import { PriceData, PriceHistory as PriceHistoryType } from '@/lib/types';
 import productsConfig from '../../config/products.json';
 import { RefreshCw, Clock, Zap, TrendingDown } from 'lucide-react';
@@ -17,6 +18,10 @@ export default function Home() {
   const [nextUpdate, setNextUpdate] = useState<Date | null>(null);
   const [countdown, setCountdown] = useState<number>(0);
   const [isManualUpdate, setIsManualUpdate] = useState(false);
+
+  // Estado do catálogo
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
 
   // Carrega preços do banco (NUNCA faz scraping)
   // Apenas o CRON externo faz scraping chamando /api/scrape
@@ -33,7 +38,13 @@ export default function Home() {
       // SEMPRE busca do banco - nunca faz scraping no frontend
       const endpoint = '/api/prices';
       console.log('[Frontend] Chamando:', endpoint);
-      const response = await fetch(endpoint);
+      const response = await fetch(endpoint, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -173,28 +184,103 @@ export default function Home() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  // Agrupa preços por produto
-  const groupedPrices = productsConfig.products.map((product) => ({
-    product,
-    prices: prices.filter((p) => p.productId === product.id),
-  }));
+  // Filtra produtos por categoria
+  const filteredProducts = useMemo(() => {
+    if (activeCategory === 'all') {
+      return productsConfig.products;
+    }
+    return productsConfig.products.filter(p => p.category === activeCategory);
+  }, [activeCategory]);
+
+  // Calcula contadores de produtos por categoria
+  const productCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      all: productsConfig.products.length,
+    };
+
+    productsConfig.categories?.forEach(cat => {
+      if (cat.id !== 'all') {
+        counts[cat.id] = productsConfig.products.filter(p => p.category === cat.id).length;
+      }
+    });
+
+    return counts;
+  }, []);
+
+  // Pega produto selecionado
+  const selectedProductData = useMemo(() => {
+    if (!selectedProduct) return null;
+    return productsConfig.products.find(p => p.id === selectedProduct);
+  }, [selectedProduct]);
+
+  // Pega preços do produto selecionado
+  const selectedProductPrices = useMemo(() => {
+    if (!selectedProduct) return [];
+    return prices.filter(p => p.productId === selectedProduct);
+  }, [selectedProduct, prices]);
+
+  // Pega histórico do produto selecionado
+  const selectedProductHistory = useMemo(() => {
+    if (!selectedProduct) return [];
+    return history.filter(h => h.productId === selectedProduct);
+  }, [selectedProduct, history]);
+
+  // Calcula menor preço por produto
+  const getLowestPrice = (productId: string): number | null => {
+    const productPrices = prices.filter(p => p.productId === productId && p.price !== null);
+    if (productPrices.length === 0) return null;
+    return Math.min(...productPrices.map(p => p.price!));
+  };
+
+  // Verifica se o alvo foi atingido
+  const isTargetReached = (productId: string): boolean => {
+    const lowestPrice = getLowestPrice(productId);
+    if (lowestPrice === null) return false;
+    const product = productsConfig.products.find(p => p.id === productId);
+    return lowestPrice <= (product?.targetPrice || 0);
+  };
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen p-4 md:p-8 relative overflow-hidden">
+      {/* Background decorativo */}
+      <div className="fixed inset-0 -z-10">
+        {/* Gradient de fundo */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900" />
+
+        {/* Grid pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)
+            `,
+            backgroundSize: '50px 50px'
+          }}
+        />
+
+        {/* Blobs decorativos */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="max-w-7xl mx-auto relative">
         {/* Header */}
         <header className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
+            <div className="relative">
+              <h1 className="text-4xl md:text-5xl font-bold text-white relative inline-block">
                 Monitor de Preços
+                {/* Subtle glow effect */}
+                <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-emerald-600/20 blur-2xl -z-10" />
               </h1>
-              <p className="text-gray-400 mt-2">Black Friday 2025 - TVs TCL</p>
+              <p className="text-gray-400 mt-2">Acompanhe os melhores preços em tempo real</p>
             </div>
             <button
               onClick={() => fetchPrices(true)}
               disabled={loading}
-              className="glass px-6 py-3 rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 flex items-center gap-2"
+              className="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-xl font-semibold transition-all disabled:opacity-50 flex items-center gap-2 border border-white/10"
             >
               <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
               {loading ? 'Atualizando...' : 'Atualizar'}
@@ -202,68 +288,85 @@ export default function Home() {
           </div>
 
           {/* Status bar */}
-          <div className="glass rounded-xl p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center gap-3">
-              <Clock className="text-purple-400" size={24} />
+          <div className="glass rounded-xl p-4 grid grid-cols-1 md:grid-cols-3 gap-4 border border-white/5">
+            <div className="flex items-center justify-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Clock className="text-blue-400" size={20} />
+              </div>
               <div>
-                <div className="text-sm text-gray-400">Última atualização</div>
-                <div className="font-semibold">
+                <div className="text-xs text-gray-500">Última atualização</div>
+                <div className="font-semibold text-white">
                   {lastUpdate ? lastUpdate.toLocaleTimeString('pt-BR') : 'Nunca'}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Zap className="text-yellow-400" size={24} />
+            <div className="flex items-center justify-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/10">
+                <Zap className="text-amber-400" size={20} />
+              </div>
               <div>
-                <div className="text-sm text-gray-400">Próxima em</div>
-                <div className="font-semibold">{formatCountdown(countdown)}</div>
+                <div className="text-xs text-gray-500">Próxima em</div>
+                <div className="font-semibold text-white">{formatCountdown(countdown)}</div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <TrendingDown className="text-green-400" size={24} />
+            <div className="flex items-center justify-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-500/10">
+                <TrendingDown className="text-emerald-400" size={20} />
+              </div>
               <div>
-                <div className="text-sm text-gray-400">Produtos monitorados</div>
-                <div className="font-semibold">{productsConfig.products.length}</div>
+                <div className="text-xs text-gray-500">Produtos monitorados</div>
+                <div className="font-semibold text-white">{productsConfig.products.length}</div>
               </div>
             </div>
           </div>
         </header>
 
-        {/* Produtos */}
-        {groupedPrices.map(({ product, prices: productPrices }) => (
-          <div key={product.id} className="mb-12">
-            <div className="mb-6">
-              <h2 className="text-3xl font-bold text-white mb-2">{product.name}</h2>
-              <p className="text-gray-400">
-                Alerta configurado para R$ {product.targetPrice.toFixed(2).replace('.', ',')}
-              </p>
+        {/* Layout principal: Sidebar + Catálogo */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Sidebar de categorias */}
+          <CategorySidebar
+            categories={productsConfig.categories || []}
+            activeCategory={activeCategory}
+            onCategoryChange={setActiveCategory}
+            productCounts={productCounts}
+          />
+
+          {/* Grid de produtos */}
+          <main className="flex-1">
+            <div className="flex flex-col gap-4">
+              {filteredProducts.map(product => (
+                <ProductCatalogCard
+                  key={product.id}
+                  product={product}
+                  lowestPrice={getLowestPrice(product.id)}
+                  isTargetReached={isTargetReached(product.id)}
+                  onClick={() => setSelectedProduct(product.id)}
+                />
+              ))}
             </div>
 
-            {/* Grid de preços */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              {productPrices.length > 0 ? (
-                productPrices.map((price) => (
-                  <PriceCard
-                    key={`${price.productId}-${price.store}`}
-                    priceData={price}
-                    targetPrice={product.targetPrice}
-                  />
-                ))
-              ) : (
-                <div className="col-span-full glass rounded-xl p-8 text-center text-gray-400">
-                  Nenhum preço disponível ainda. Clique em &quot;Atualizar&quot; para buscar.
-                </div>
-              )}
-            </div>
+            {filteredProducts.length === 0 && (
+              <div className="glass rounded-xl p-12 text-center text-gray-400">
+                Nenhum produto encontrado nesta categoria.
+              </div>
+            )}
+          </main>
+        </div>
 
-            {/* Histórico */}
-            <PriceHistory history={history} productId={product.id} />
-          </div>
-        ))}
+        {/* Modal de detalhes do produto */}
+        {selectedProductData && (
+          <ProductDetailModal
+            product={selectedProductData}
+            prices={selectedProductPrices}
+            history={selectedProductHistory}
+            isOpen={selectedProduct !== null}
+            onClose={() => setSelectedProduct(null)}
+          />
+        )}
 
         {/* Footer */}
         <footer className="text-center text-gray-500 text-sm mt-12 pb-8">
-          <p>Monitoramento automático a cada {CHECK_INTERVAL / 60000} minutos</p>
+          <p>Desenvolvido por Fabrício Bahiense</p>
         </footer>
       </div>
     </div>

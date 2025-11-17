@@ -1,8 +1,28 @@
 {
+  "categories": [
+    {
+      "id": "all",
+      "name": "Todos",
+      "icon": "grid"
+    },
+    {
+      "id": "tvs",
+      "name": "TVs",
+      "icon": "tv"
+    },
+    {
+      "id": "videogames",
+      "name": "Video Games",
+      "icon": "monitor"
+    }
+  ],
   "products": [
     {
       "id": "tcl-c755-65",
       "name": "TCL C755 65\"",
+      "category": "tvs",
+      "description": "TV 4K QLED Mini LED 120Hz HDR10+ Dolby Vision",
+      "image": "https://m.media-amazon.com/images/I/61GWcZD2F6L._AC_SY300_SX300_QL70_ML2_.jpg",
       "targetPrice": 4000,
       "urls": {
         "amazon": "https://www.amazon.com.br/TCL-Premium-QD-Mini-Google-Vision/dp/B0D4MNYC1V",
@@ -14,6 +34,9 @@
     {
       "id": "tcl-c6k-65",
       "name": "TCL C6K 65\" (2025)",
+      "category": "tvs",
+      "description": "TV 4K QD Mini LED 144Hz Google TV Dolby Vision IQ",
+      "image": "https://m.media-amazon.com/images/I/91W5Y2SD1BL._AC_SY300_SX300_QL70_ML2_.jpg",
       "targetPrice": 3300,
       "urls": {
         "amazon": "https://www.amazon.com.br/TCL-Polegadas-Bluetooth-Google-65C6K/dp/B0F7K7B2PD",
