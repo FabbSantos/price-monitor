@@ -8,7 +8,7 @@ import { PriceData, PriceHistory as PriceHistoryType } from '@/lib/types';
 import productsConfig from '../../config/products.json';
 import { RefreshCw, Clock, Zap, TrendingDown } from 'lucide-react';
 
-const CHECK_INTERVAL = parseInt(process.env.NEXT_PUBLIC_CHECK_INTERVAL || '15') * 60 * 1000; // 15 min default
+const CHECK_INTERVAL = parseInt(process.env.NEXT_PUBLIC_CHECK_INTERVAL || '120') * 60 * 1000; // 2 horas default
 
 export default function Home() {
   const [prices, setPrices] = useState<PriceData[]>([]);
