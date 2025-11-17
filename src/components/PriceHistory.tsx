@@ -49,16 +49,16 @@ export function PriceHistory({ history, productId }: PriceHistoryProps) {
     const lastDay = normalizeToDay(rawData[rawData.length - 1].timestamp);
 
     // Cria mapa de preços por dia
-    const pricesByDay = new Map<number, { price: number; store: string; date: string; timestamp: number }>();
+    const pricesByDay = new Map<number, { price: number; store: string; date: string; originalTimestamp: number }>();
     rawData.forEach((d) => {
       const day = normalizeToDay(d.timestamp);
       // Se já existe preço neste dia, mantém o mais recente
-      if (!pricesByDay.has(day) || d.timestamp > pricesByDay.get(day)!.timestamp) {
+      if (!pricesByDay.has(day) || d.timestamp > pricesByDay.get(day)!.originalTimestamp) {
         pricesByDay.set(day, {
           price: d.price,
           store: d.store,
           date: format(new Date(day), 'dd/MM', { locale: ptBR }),
-          timestamp: d.timestamp,
+          originalTimestamp: d.timestamp,
         });
       }
     });
@@ -72,9 +72,10 @@ export function PriceHistory({ history, productId }: PriceHistoryProps) {
       if (pricesByDay.has(currentDay)) {
         // Usa o preço real deste dia
         const dayData = pricesByDay.get(currentDay)!;
+        const { originalTimestamp, ...dataForChart } = dayData;
         chartData.push({
           timestamp: currentDay,
-          ...dayData,
+          ...dataForChart,
         });
         lastKnownPrice = dayData.price;
       } else {
