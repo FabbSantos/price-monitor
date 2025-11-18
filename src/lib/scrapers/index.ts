@@ -2,6 +2,7 @@ import { AmazonScraper } from './amazon';
 import { CasasBahiaScraper } from './casasbahia';
 import { MagazineLuizaScraper } from './magazineluiza';
 import { MercadoLivreScraper } from './mercadolivre';
+import { TerabyteScraper } from './terabyte';
 import { BaseScraper } from './base';
 
 /**
@@ -17,6 +18,8 @@ export function getScraperForStore(storeId: string): BaseScraper {
       return new MagazineLuizaScraper();
     case 'mercadolivre':
       return new MercadoLivreScraper();
+    case 'terabyte':
+      return new TerabyteScraper();
     default:
       throw new Error(`Scraper não encontrado para a loja: ${storeId}`);
   }

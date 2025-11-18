@@ -44,6 +44,20 @@
         "magazineluiza": "https://www.magazineluiza.com.br/smart-tv-65-tcl-4k-uhd-miniled-65c6k-120hz-google-tv-aipq-google-assistente-4-hdmi-2-usb/p/240162600/et/tves/",
         "mercadolivre": "https://www.mercadolivre.com.br/smart-tv-tcl-65-polegadas-qled-mini-led-4k-c6k-wifi-bluetooth-google-tv-4-hdmi-144hz-hdr10-65c6k/p/MLB50368907"
       }
+    },
+    {
+      "id": "placa-video-b580",
+      "name": "Intel B580",
+      "category": "videogames",
+      "description": "Placa de vídeo Intel B580 para jogos e aplicações gráficas",
+      "image": "https://m.media-amazon.com/images/I/81TKokStTYL._AC_UL480_FMwebp_QL65_.jpg",
+      "targetPrice": 3000,
+      "urls": {
+        "amazon": "https://www.amazon.com.br/ASROCK-B580-SL-12GO-90-GA5CZZ-00UANF/dp/B0DNV4NRK5/",
+        "terabyte": "https://www.terabyteshop.com.br/produto/34286/placa-de-video-intel-arc-b580-limited-edition-12gb-gddr6-xe2-ray-tracing-31p06hb0ba",
+        "magazineluiza": "https://www.magazineluiza.com.br/placa-de-video-asrock-intel-arc-b580-challenger-oc-12gb-gddr6-192bits-90ga5lzz00uanf/p/afjhh4g882/in/pcvd/",
+        "mercadolivre": "https://www.mercadolivre.com.br/placa-grafica-asrock-b580-challenger-intel-arc-oc-12g-gddr6/p/MLB46385187"
+      }
     }
   ],
   "stores": [
@@ -65,6 +79,11 @@
     {
       "id": "mercadolivre",
       "name": "Mercado Livre",
+      "enabled": true
+    },
+    {
+      "id": "terabyte",
+      "name": "Terabyte Shop",
       "enabled": true
     }
   ]
